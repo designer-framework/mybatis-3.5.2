@@ -1,31 +1,19 @@
 /**
- *    Copyright 2009-2019 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2021 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.session;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.function.BiFunction;
 
 import org.apache.ibatis.binding.MapperRegistry;
 import org.apache.ibatis.builder.CacheRefResolver;
@@ -42,11 +30,7 @@ import org.apache.ibatis.cache.impl.PerpetualCache;
 import org.apache.ibatis.datasource.jndi.JndiDataSourceFactory;
 import org.apache.ibatis.datasource.pooled.PooledDataSourceFactory;
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSourceFactory;
-import org.apache.ibatis.executor.BatchExecutor;
-import org.apache.ibatis.executor.CachingExecutor;
-import org.apache.ibatis.executor.Executor;
-import org.apache.ibatis.executor.ReuseExecutor;
-import org.apache.ibatis.executor.SimpleExecutor;
+import org.apache.ibatis.executor.*;
 import org.apache.ibatis.executor.keygen.KeyGenerator;
 import org.apache.ibatis.executor.loader.ProxyFactory;
 import org.apache.ibatis.executor.loader.cglib.CglibProxyFactory;
@@ -66,13 +50,7 @@ import org.apache.ibatis.logging.log4j2.Log4j2Impl;
 import org.apache.ibatis.logging.nologging.NoLoggingImpl;
 import org.apache.ibatis.logging.slf4j.Slf4jImpl;
 import org.apache.ibatis.logging.stdout.StdOutImpl;
-import org.apache.ibatis.mapping.BoundSql;
-import org.apache.ibatis.mapping.Environment;
-import org.apache.ibatis.mapping.MappedStatement;
-import org.apache.ibatis.mapping.ParameterMap;
-import org.apache.ibatis.mapping.ResultMap;
-import org.apache.ibatis.mapping.ResultSetType;
-import org.apache.ibatis.mapping.VendorDatabaseIdProvider;
+import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.parsing.XNode;
 import org.apache.ibatis.plugin.Interceptor;
 import org.apache.ibatis.plugin.InterceptorChain;
@@ -95,13 +73,39 @@ import org.apache.ibatis.type.TypeAliasRegistry;
 import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
+import java.util.*;
+import java.util.function.BiFunction;
+
 /**
  * @author Clinton Begin
  */
 public class Configuration {
 
+  protected final MapperRegistry mapperRegistry = new MapperRegistry(this);
+  protected final InterceptorChain interceptorChain = new InterceptorChain();
+  protected final TypeHandlerRegistry typeHandlerRegistry = new TypeHandlerRegistry();
+  protected final TypeAliasRegistry typeAliasRegistry = new TypeAliasRegistry();
+  protected final LanguageDriverRegistry languageRegistry = new LanguageDriverRegistry();
+  protected final Map<String, MappedStatement> mappedStatements = new StrictMap<MappedStatement>("Mapped Statements collection")
+    .conflictMessageProducer((savedValue, targetValue) ->
+      ". please check " + savedValue.getResource() + " and " + targetValue.getResource());
+  protected final Map<String, Cache> caches = new StrictMap<>("Caches collection");
+  protected final Map<String, ResultMap> resultMaps = new StrictMap<>("Result Maps collection");
+  protected final Map<String, ParameterMap> parameterMaps = new StrictMap<>("Parameter Maps collection");
+  protected final Map<String, KeyGenerator> keyGenerators = new StrictMap<>("Key Generators collection");
+  protected final Set<String> loadedResources = new HashSet<>();
+  protected final Map<String, XNode> sqlFragments = new StrictMap<>("XML fragments parsed from previous mappers");
+  protected final Collection<XMLStatementBuilder> incompleteStatements = new LinkedList<>();
+  protected final Collection<CacheRefResolver> incompleteCacheRefs = new LinkedList<>();
+  protected final Collection<ResultMapResolver> incompleteResultMaps = new LinkedList<>();
+  protected final Collection<MethodResolver> incompleteMethods = new LinkedList<>();
+  /*
+   * A map holds cache-ref relationship. The key is the namespace that
+   * references a cache bound to another namespace and the value is the
+   * namespace which the actual cache is bound to.
+   */
+  protected final Map<String, String> cacheRefMap = new HashMap<>();
   protected Environment environment;
-
   protected boolean safeRowBoundsEnabled;
   protected boolean safeResultHandlerEnabled = true;
   protected boolean mapUnderscoreToCamelCase;
@@ -113,7 +117,6 @@ public class Configuration {
   protected boolean callSettersOnNulls;
   protected boolean useActualParamName = true;
   protected boolean returnInstanceForEmptyRow;
-
   protected String logPrefix;
   protected Class<? extends Log> logImpl;
   protected Class<? extends VFS> vfsImpl;
@@ -126,15 +129,12 @@ public class Configuration {
   protected ExecutorType defaultExecutorType = ExecutorType.SIMPLE;
   protected AutoMappingBehavior autoMappingBehavior = AutoMappingBehavior.PARTIAL;
   protected AutoMappingUnknownColumnBehavior autoMappingUnknownColumnBehavior = AutoMappingUnknownColumnBehavior.NONE;
-
   protected Properties variables = new Properties();
   protected ReflectorFactory reflectorFactory = new DefaultReflectorFactory();
   protected ObjectFactory objectFactory = new DefaultObjectFactory();
   protected ObjectWrapperFactory objectWrapperFactory = new DefaultObjectWrapperFactory();
-
   protected boolean lazyLoadingEnabled = false;
   protected ProxyFactory proxyFactory = new JavassistProxyFactory(); // #224 Using internal Javassist instead of OGNL
-
   protected String databaseId;
   /**
    * Configuration factory class.
@@ -143,35 +143,6 @@ public class Configuration {
    * @see <a href='https://code.google.com/p/mybatis/issues/detail?id=300'>Issue 300 (google code)</a>
    */
   protected Class<?> configurationFactory;
-
-  protected final MapperRegistry mapperRegistry = new MapperRegistry(this);
-  protected final InterceptorChain interceptorChain = new InterceptorChain();
-  protected final TypeHandlerRegistry typeHandlerRegistry = new TypeHandlerRegistry();
-  protected final TypeAliasRegistry typeAliasRegistry = new TypeAliasRegistry();
-  protected final LanguageDriverRegistry languageRegistry = new LanguageDriverRegistry();
-
-  protected final Map<String, MappedStatement> mappedStatements = new StrictMap<MappedStatement>("Mapped Statements collection")
-      .conflictMessageProducer((savedValue, targetValue) ->
-          ". please check " + savedValue.getResource() + " and " + targetValue.getResource());
-  protected final Map<String, Cache> caches = new StrictMap<>("Caches collection");
-  protected final Map<String, ResultMap> resultMaps = new StrictMap<>("Result Maps collection");
-  protected final Map<String, ParameterMap> parameterMaps = new StrictMap<>("Parameter Maps collection");
-  protected final Map<String, KeyGenerator> keyGenerators = new StrictMap<>("Key Generators collection");
-
-  protected final Set<String> loadedResources = new HashSet<>();
-  protected final Map<String, XNode> sqlFragments = new StrictMap<>("XML fragments parsed from previous mappers");
-
-  protected final Collection<XMLStatementBuilder> incompleteStatements = new LinkedList<>();
-  protected final Collection<CacheRefResolver> incompleteCacheRefs = new LinkedList<>();
-  protected final Collection<ResultMapResolver> incompleteResultMaps = new LinkedList<>();
-  protected final Collection<MethodResolver> incompleteMethods = new LinkedList<>();
-
-  /*
-   * A map holds cache-ref relationship. The key is the namespace that
-   * references a cache bound to another namespace and the value is the
-   * namespace which the actual cache is bound to.
-   */
-  protected final Map<String, String> cacheRefMap = new HashMap<>();
 
   public Configuration(Environment environment) {
     this();
@@ -232,7 +203,7 @@ public class Configuration {
   }
 
   public Class<? extends VFS> getVfsImpl() {
-    return this.vfsImpl;
+    return vfsImpl;
   }
 
   public void setVfsImpl(Class<? extends VFS> vfsImpl) {
@@ -263,7 +234,7 @@ public class Configuration {
   }
 
   public void setReturnInstanceForEmptyRow(boolean returnEmptyInstance) {
-    this.returnInstanceForEmptyRow = returnEmptyInstance;
+    returnInstanceForEmptyRow = returnEmptyInstance;
   }
 
   public String getDatabaseId() {
@@ -582,7 +553,7 @@ public class Configuration {
   }
 
   public ResultSetHandler newResultSetHandler(Executor executor, MappedStatement mappedStatement, RowBounds rowBounds, ParameterHandler parameterHandler,
-      ResultHandler resultHandler, BoundSql boundSql) {
+                                              ResultHandler resultHandler, BoundSql boundSql) {
     ResultSetHandler resultSetHandler = new DefaultResultSetHandler(executor, mappedStatement, parameterHandler, resultHandler, boundSql, rowBounds);
     resultSetHandler = (ResultSetHandler) interceptorChain.pluginAll(resultSetHandler);
     return resultSetHandler;
@@ -745,7 +716,7 @@ public class Configuration {
   }
 
   public MappedStatement getMappedStatement(String id) {
-    return this.getMappedStatement(id, true);
+    return getMappedStatement(id, true);
   }
 
   public MappedStatement getMappedStatement(String id, boolean validateIncompleteStatements) {
@@ -944,10 +915,10 @@ public class Configuration {
     public V put(String key, V value) {
       if (containsKey(key)) {
         throw new IllegalArgumentException(name + " already contains value for " + key
-            + (conflictMessageProducer == null ? "" : conflictMessageProducer.apply(super.get(key), value)));
+          + (conflictMessageProducer == null ? "" : conflictMessageProducer.apply(super.get(key), value)));
       }
       if (key.contains(".")) {
-        final String shortKey = getShortName(key);
+        String shortKey = getShortName(key);
         if (super.get(shortKey) == null) {
           super.put(shortKey, value);
         } else {
@@ -965,9 +936,14 @@ public class Configuration {
       }
       if (value instanceof Ambiguity) {
         throw new IllegalArgumentException(((Ambiguity) value).getSubject() + " is ambiguous in " + name
-            + " (try using the full name including the namespace, or rename one of the entries)");
+          + " (try using the full name including the namespace, or rename one of the entries)");
       }
       return value;
+    }
+
+    private String getShortName(String key) {
+      String[] keyParts = key.split("\\.");
+      return keyParts[keyParts.length - 1];
     }
 
     protected static class Ambiguity {
@@ -980,11 +956,6 @@ public class Configuration {
       public String getSubject() {
         return subject;
       }
-    }
-
-    private String getShortName(String key) {
-      final String[] keyParts = key.split("\\.");
-      return keyParts[keyParts.length - 1];
     }
   }
 

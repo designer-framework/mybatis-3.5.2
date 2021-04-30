@@ -1,27 +1,24 @@
 /**
- *    Copyright 2009-2019 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2021 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.io;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.logging.LogFactory;
+
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -30,9 +27,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
-
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
 
 /**
  * A default implementation of {@link VFS} that works for most application servers.
@@ -43,7 +37,7 @@ public class DefaultVFS extends VFS {
   private static final Log log = LogFactory.getLog(DefaultVFS.class);
 
   /** The magic header that indicates a JAR (ZIP) file. */
-  private static final byte[] JAR_MAGIC = { 'P', 'K', 3, 4 };
+  private static final byte[] JAR_MAGIC = {'P', 'K', 3, 4};
 
   @Override
   public boolean isValid() {
@@ -65,8 +59,7 @@ public class DefaultVFS extends VFS {
           log.debug("Listing " + url);
         }
         resources = listResources(new JarInputStream(is), path);
-      }
-      else {
+      } else {
         List<String> children = new ArrayList<>();
         try {
           if (isJar(url)) {
@@ -84,8 +77,7 @@ public class DefaultVFS extends VFS {
                 children.add(entry.getName());
               }
             }
-          }
-          else {
+          } else {
             /*
              * Some servlet containers allow reading from directory resources like a
              * text file, listing the child resources one per line. However, there is no
@@ -97,7 +89,7 @@ public class DefaultVFS extends VFS {
             is = url.openStream();
             BufferedReader reader = new BufferedReader(new InputStreamReader(is));
             List<String> lines = new ArrayList<>();
-            for (String line; (line = reader.readLine()) != null;) {
+            for (String line; (line = reader.readLine()) != null; ) {
               if (log.isDebugEnabled()) {
                 log.debug("Reader entry: " + line);
               }
@@ -124,16 +116,15 @@ public class DefaultVFS extends VFS {
           if ("file".equals(url.getProtocol())) {
             File file = new File(url.getFile());
             if (log.isDebugEnabled()) {
-                log.debug("Listing directory " + file.getAbsolutePath());
+              log.debug("Listing directory " + file.getAbsolutePath());
             }
             if (file.isDirectory()) {
               if (log.isDebugEnabled()) {
-                  log.debug("Listing " + url);
+                log.debug("Listing " + url);
               }
               children = Arrays.asList(file.list());
             }
-          }
-          else {
+          } else {
             // No idea where the exception came from so rethrow it
             throw e;
           }
@@ -186,7 +177,7 @@ public class DefaultVFS extends VFS {
 
     // Iterate over the entries and collect those that begin with the requested path
     List<String> resources = new ArrayList<>();
-    for (JarEntry entry; (entry = jar.getNextJarEntry()) != null;) {
+    for (JarEntry entry; (entry = jar.getNextJarEntry()) != null; ) {
       if (!entry.isDirectory()) {
         // Add leading slash if it's missing
         StringBuilder name = new StringBuilder(entry.getName());
@@ -224,7 +215,7 @@ public class DefaultVFS extends VFS {
 
     // If the file part of the URL is itself a URL, then that URL probably points to the JAR
     try {
-      for (;;) {
+      for (; ; ) {
         url = new URL(url.getFile());
         if (log.isDebugEnabled()) {
           log.debug("Inner URL: " + url);
@@ -242,8 +233,7 @@ public class DefaultVFS extends VFS {
       if (log.isDebugEnabled()) {
         log.debug("Extracted JAR URL: " + jarUrl);
       }
-    }
-    else {
+    } else {
       if (log.isDebugEnabled()) {
         log.debug("Not a JAR: " + jarUrl);
       }
@@ -255,8 +245,7 @@ public class DefaultVFS extends VFS {
       URL testUrl = new URL(jarUrl.toString());
       if (isJar(testUrl)) {
         return testUrl;
-      }
-      else {
+      } else {
         // WebLogic fix: check if the URL's file exists in the filesystem.
         if (log.isDebugEnabled()) {
           log.debug("Not a JAR: " + jarUrl);

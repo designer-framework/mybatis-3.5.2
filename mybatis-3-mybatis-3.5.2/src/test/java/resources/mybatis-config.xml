@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+       Copyright 2009-2021 the original author or authors.
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License.
+       You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing, software
+       distributed under the License is distributed on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       See the License for the specific language governing permissions and
+       limitations under the License.
+
+-->
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+  <properties resource="resources/log.properties">
+    <!-- ... -->
+    <property name="org.apache.ibatis.parsing.PropertyParser.enable-default-value" value="true"/> <!-- 启用默认值特性 -->
+    <property name="org.apache.ibatis.parsing.PropertyParser.default-value-separator"
+              value="?:"/> <!-- 修改默认值的分隔符 -->
+  </properties>
+  <settings>
+    <setting name="cacheEnabled" value="true"/>
+    <setting name="lazyLoadingEnabled" value="true"/>
+    <setting name="multipleResultSetsEnabled" value="true"/>
+    <setting name="useColumnLabel" value="true"/>
+    <setting name="useGeneratedKeys" value="false"/>
+    <setting name="autoMappingBehavior" value="PARTIAL"/>
+    <setting name="autoMappingUnknownColumnBehavior" value="WARNING"/>
+    <setting name="defaultExecutorType" value="SIMPLE"/>
+    <setting name="defaultStatementTimeout" value="25"/>
+    <setting name="defaultFetchSize" value="100"/>
+    <setting name="safeRowBoundsEnabled" value="false"/>
+    <setting name="mapUnderscoreToCamelCase" value="true"/>
+    <setting name="localCacheScope" value="SESSION"/>
+    <setting name="jdbcTypeForNull" value="OTHER"/>
+    <setting name="lazyLoadTriggerMethods" value="equals,clone,hashCode,toString"/>
+  </settings>
+  <typeAliases>
+    <typeAlias alias="smsRecord" type="org.designer.ibatis.entity.SmsRecord"/>
+  </typeAliases>
+  <objectFactory type="org.designer.ibatis.configuration.MyDefaultObjectFactory">
+    <property name="content" value="100"/>
+  </objectFactory>
+  <environments default="dev">
+    <environment id="dev">
+      <transactionManager type="org.designer.ibatis.configuration.MyTransactionFactory">
+        <property name="closeConnection" value="false"/>
+      </transactionManager>
+      <dataSource type="POOLED">
+        <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
+        <property name="url"
+                  value="jdbc:mysql://mysql:3306/crmeb_java_v1?autoReconnect=true&amp;useUnicode=true&amp;createDatabaseIfNotExist=true&amp;characterEncoding=utf-8&amp;useSSL=false"/>
+        <property name="username" value="root"/>
+        <property name="password" value="Onlyyouroo@@@"/>
+      </dataSource>
+    </environment>
+  </environments>
+  <mappers>
+    <mapper resource="resources/mapper/SmsRecordMapper.xml"/>
+  </mappers>
+</configuration>

@@ -1,24 +1,19 @@
 /**
- *    Copyright 2009-2019 the original author or authors.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * Copyright 2009-2021 the original author or authors.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.apache.ibatis.builder.xml;
-
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.Properties;
-import javax.sql.DataSource;
 
 import org.apache.ibatis.builder.BaseBuilder;
 import org.apache.ibatis.builder.BuilderException;
@@ -38,13 +33,14 @@ import org.apache.ibatis.reflection.MetaClass;
 import org.apache.ibatis.reflection.ReflectorFactory;
 import org.apache.ibatis.reflection.factory.ObjectFactory;
 import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
-import org.apache.ibatis.session.AutoMappingBehavior;
-import org.apache.ibatis.session.AutoMappingUnknownColumnBehavior;
-import org.apache.ibatis.session.Configuration;
-import org.apache.ibatis.session.ExecutorType;
-import org.apache.ibatis.session.LocalCacheScope;
+import org.apache.ibatis.session.*;
 import org.apache.ibatis.transaction.TransactionFactory;
 import org.apache.ibatis.type.JdbcType;
+
+import javax.sql.DataSource;
+import java.io.InputStream;
+import java.io.Reader;
+import java.util.Properties;
 
 /**
  * @author Clinton Begin
@@ -52,10 +48,10 @@ import org.apache.ibatis.type.JdbcType;
  */
 public class XMLConfigBuilder extends BaseBuilder {
 
-  private boolean parsed;
   private final XPathParser parser;
-  private String environment;
   private final ReflectorFactory localReflectorFactory = new DefaultReflectorFactory();
+  private boolean parsed;
+  private String environment;
 
   public XMLConfigBuilder(Reader reader) {
     this(reader, null, null);
@@ -81,11 +77,20 @@ public class XMLConfigBuilder extends BaseBuilder {
     this(new XPathParser(inputStream, true, props, new XMLMapperEntityResolver()), environment, props);
   }
 
+  /**
+   * Configuration类 将默认标签解析器放入解析工具Map当中, 可通过xml标签或者约定的值查找对应的解析器, 最终完成目标解析
+   * super类构造器对属性类型转换器和属性别名进行初始化
+   * 只做了部分数据的初始化
+   *
+   * @param parser
+   * @param environment
+   * @param props
+   */
   private XMLConfigBuilder(XPathParser parser, String environment, Properties props) {
     super(new Configuration());
     ErrorContext.instance().resource("SQL Mapper Configuration");
-    this.configuration.setVariables(props);
-    this.parsed = false;
+    configuration.setVariables(props);
+    parsed = false;
     this.environment = environment;
     this.parser = parser;
   }
@@ -99,23 +104,41 @@ public class XMLConfigBuilder extends BaseBuilder {
     return configuration;
   }
 
+  /**
+   * config初始化
+   *
+   * @param root
+   */
   private void parseConfiguration(XNode root) {
     try {
       //issue #117 read properties first
       propertiesElement(root.evalNode("properties"));
       Properties settings = settingsAsProperties(root.evalNode("settings"));
+      //逗号来分割多个类在一行的情况
       loadCustomVfs(settings);
+      //自定义日志实现
       loadCustomLogImpl(settings);
+      //类别名
       typeAliasesElement(root.evalNode("typeAliases"));
+      //自定义拦截器, 著名的PageHelper就是利用该拦截器实现
       pluginElement(root.evalNode("plugins"));
+      //与Spring的ObjectFactory类似,  它返回的是被包装过后的代理bean, 在调用生成bean的方法时会基于包装类内部的原始类进行增强生成最终的bean
       objectFactoryElement(root.evalNode("objectFactory"));
+      //官方未列出此参数作用， 看起来像对bean进行二次操作
       objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
+      //给出Class, 返回class的属性包装类,  判断类是否需要缓存
       reflectorFactoryElement(root.evalNode("reflectorFactory"));
+      //设置解析Mapper时的全局配置
       settingsElement(settings);
       // read it after objectFactory and objectWrapperFactory issue #631
+      //初始化数据源
+      //初始化事务管理器
       environmentsElement(root.evalNode("environments"));
+      //数据库标识, 可以有多个
       databaseIdProviderElement(root.evalNode("databaseIdProvider"));
+      //自定义类转换器
       typeHandlerElement(root.evalNode("typeHandlers"));
+      //加载Mapper映射关系, 支持扫包和xml配置, 也支持从远程获取class
       mapperElement(root.evalNode("mappers"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
@@ -144,7 +167,7 @@ public class XMLConfigBuilder extends BaseBuilder {
       for (String clazz : clazzes) {
         if (!clazz.isEmpty()) {
           @SuppressWarnings("unchecked")
-          Class<? extends VFS> vfsImpl = (Class<? extends VFS>)Resources.classForName(clazz);
+          Class<? extends VFS> vfsImpl = (Class<? extends VFS>) Resources.classForName(clazz);
           configuration.setVfsImpl(vfsImpl);
         }
       }
@@ -235,6 +258,7 @@ public class XMLConfigBuilder extends BaseBuilder {
       if (vars != null) {
         defaults.putAll(vars);
       }
+      //将properties放入解析器及Config
       parser.setVariables(defaults);
       configuration.setVariables(defaults);
     }
@@ -277,12 +301,13 @@ public class XMLConfigBuilder extends BaseBuilder {
       for (XNode child : context.getChildren()) {
         String id = child.getStringAttribute("id");
         if (isSpecifiedEnvironment(id)) {
+          //初始化事务管理器
           TransactionFactory txFactory = transactionManagerElement(child.evalNode("transactionManager"));
           DataSourceFactory dsFactory = dataSourceElement(child.evalNode("dataSource"));
           DataSource dataSource = dsFactory.getDataSource();
           Environment.Builder environmentBuilder = new Environment.Builder(id)
-              .transactionFactory(txFactory)
-              .dataSource(dataSource);
+            .transactionFactory(txFactory)
+            .dataSource(dataSource);
           configuration.setEnvironment(environmentBuilder.build());
         }
       }
@@ -323,6 +348,7 @@ public class XMLConfigBuilder extends BaseBuilder {
     if (context != null) {
       String type = context.getStringAttribute("type");
       Properties props = context.getChildrenAsProperties();
+      //获取数据源工厂, 根据不同的类型创建不同的数据源, POOLED为池化数据源
       DataSourceFactory factory = (DataSourceFactory) resolveClass(type).newInstance();
       factory.setProperties(props);
       return factory;
@@ -371,6 +397,7 @@ public class XMLConfigBuilder extends BaseBuilder {
             ErrorContext.instance().resource(resource);
             InputStream inputStream = Resources.getResourceAsStream(resource);
             XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, resource, configuration.getSqlFragments());
+            //该方法将映射信息放到公共变量中
             mapperParser.parse();
           } else if (resource == null && url != null && mapperClass == null) {
             ErrorContext.instance().resource(url);
