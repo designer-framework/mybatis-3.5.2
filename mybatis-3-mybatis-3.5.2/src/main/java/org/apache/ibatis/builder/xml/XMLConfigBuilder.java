@@ -120,7 +120,7 @@ public class XMLConfigBuilder extends BaseBuilder {
       loadCustomLogImpl(settings);
       //类别名
       typeAliasesElement(root.evalNode("typeAliases"));
-      //自定义拦截器, 著名的PageHelper就是利用该拦截器实现
+      //注册插件[拦截器], 著名的PageHelper就是利用该拦截器实现
       pluginElement(root.evalNode("plugins"));
       //与Spring的ObjectFactory类似,  它返回的是被包装过后的代理bean, 在调用生成bean的方法时会基于包装类内部的原始类进行增强生成最终的bean
       objectFactoryElement(root.evalNode("objectFactory"));

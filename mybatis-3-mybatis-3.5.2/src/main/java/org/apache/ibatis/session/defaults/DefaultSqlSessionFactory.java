@@ -88,6 +88,13 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
     return configuration;
   }
 
+  /**
+   * @param execType
+   * @param level
+   * @param autoCommit
+   * @return
+   * @see Configuration#newExecutor(Transaction, ExecutorType) 插件在这里加载
+   */
   private SqlSession openSessionFromDataSource(ExecutorType execType, TransactionIsolationLevel level, boolean autoCommit) {
     Transaction tx = null;
     try {
@@ -96,7 +103,7 @@ public class DefaultSqlSessionFactory implements SqlSessionFactory {
       TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
       //从事务工厂中创建事务
       tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);
-      //获取一个SQL执行器
+      //获取一个SQL执行器, 插件[拦截器]在这里生效, 可以利用动态代理等代理技术实现方法增强
       Executor executor = configuration.newExecutor(tx, execType);
       //返回一个sqlSession
       return new DefaultSqlSession(configuration, executor, autoCommit);
